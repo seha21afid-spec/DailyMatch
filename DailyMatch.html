@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f97316" />
+<title>Daily Match</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #e2e8f0; -webkit-tap-highlight-color: transparent; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+  .app-shell { height: 100vh; height: 100dvh; }
+  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #f97316; background: #f8fafc; }
+</style>
+</head>
+<body>
+<div id="root"><div id="boot">Memuat Daily Match…</div></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+
+// --- ICONS (inline, pengganti lucide-react) ---
+const Icon = ({ size = 24, className = '', children }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {children}
+  </svg>
+);
+const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></Icon>;
+const ChevronRight = (p) => <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>;
+const Check = (p) => <Icon {...p}><path d="M20 6 9 17l-5-5" /></Icon>;
+const DoorClosed = (p) => <Icon {...p}><path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14" /><path d="M2 20h20" /><path d="M14 12v.01" /></Icon>;
+const UserCog = (p) => <Icon {...p}><circle cx="9" cy="7" r="4" /><path d="M2 21v-2a4 4 0 0 1 4-4h4" /><circle cx="18" cy="17" r="2.5" /><path d="M18 11.5v1.5M18 21v1.5M13.5 14.5l1.3.8M21.2 19.7l1.3.8M13.5 19.5l1.3-.8M21.2 14.3l1.3-.8" /></Icon>;
+const Palette = (p) => <Icon {...p}><circle cx="13.5" cy="6.5" r=".5" /><circle cx="17.5" cy="10.5" r=".5" /><circle cx="8.5" cy="7.5" r=".5" /><circle cx="6.5" cy="12.5" r=".5" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></Icon>;
+const Sparkles = (p) => <Icon {...p}><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /></Icon>;
+const CalendarDays = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M8 2v4M16 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" /></Icon>;
+const Filter = (p) => <Icon {...p}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></Icon>;
+
+// --- SKIN TONES ---
+const SKIN_TONES = [
+  { id: 'Fair', label: 'Fair', hex: '#FDE4D0' },
+  { id: 'Light', label: 'Light', hex: '#F5CBA7' },
+  { id: 'Medium', label: 'Medium', hex: '#E0AC69' },
+  { id: 'Tan', label: 'Tan', hex: '#C68642' },
+  { id: 'Deep', label: 'Deep', hex: '#8D5524' },
+];
+
+// --- COLOR DATABASE ---
+const COLOR_DATABASE = [
+  { id: 'r1', name: 'Cherry Red', hex: '#D2042D', category: 'Red', type: 'warm' },
+  { id: 'r2', name: 'Crimson', hex: '#DC143C', category: 'Red', type: 'warm' },
+  { id: 'r3', name: 'Burgundy', hex: '#800020', category: 'Red', type: 'cool' },
+  { id: 'r4', name: 'Maroon', hex: '#800000', category: 'Red', type: 'warm' },
+  { id: 'r5', name: 'Wine Red', hex: '#722F37', category: 'Red', type: 'cool' },
+  { id: 'r6', name: 'Ruby Red', hex: '#E0115F', category: 'Red', type: 'cool' },
+  { id: 'o1', name: 'Peach', hex: '#FFE5B4', category: 'Orange', type: 'warm' },
+  { id: 'o2', name: 'Coral', hex: '#FF7F50', category: 'Orange', type: 'warm' },
+  { id: 'o3', name: 'Terracotta', hex: '#E2725B', category: 'Orange', type: 'warm' },
+  { id: 'o4', name: 'Burnt Orange', hex: '#CC5500', category: 'Orange', type: 'warm' },
+  { id: 'o5', name: 'Tangerine', hex: '#F28500', category: 'Orange', type: 'warm' },
+  { id: 'o6', name: 'Rust', hex: '#B7410E', category: 'Orange', type: 'warm' },
+  { id: 'y1', name: 'Butter Yellow', hex: '#FFFDD0', category: 'Yellow', type: 'warm' },
+  { id: 'y2', name: 'Mustard', hex: '#FFDB58', category: 'Yellow', type: 'warm' },
+  { id: 'y3', name: 'Lemon Yellow', hex: '#FFF44F', category: 'Yellow', type: 'cool' },
+  { id: 'y4', name: 'Golden Yellow', hex: '#FFDF00', category: 'Yellow', type: 'warm' },
+  { id: 'y5', name: 'Pale Yellow', hex: '#FFFF99', category: 'Yellow', type: 'warm' },
+  { id: 'g1', name: 'Sage Green', hex: '#9DC183', category: 'Green', type: 'cool' },
+  { id: 'g2', name: 'Olive', hex: '#808000', category: 'Green', type: 'warm' },
+  { id: 'g3', name: 'Emerald', hex: '#50C878', category: 'Green', type: 'cool' },
+  { id: 'g4', name: 'Forest Green', hex: '#228B22', category: 'Green', type: 'cool' },
+  { id: 'g5', name: 'Mint', hex: '#3EB489', category: 'Green', type: 'cool' },
+  { id: 'g6', name: 'Matcha', hex: '#B5C18E', category: 'Green', type: 'warm' },
+  { id: 'b1', name: 'Navy', hex: '#000080', category: 'Blue', type: 'cool' },
+  { id: 'b2', name: 'Royal Blue', hex: '#4169E1', category: 'Blue', type: 'cool' },
+  { id: 'b3', name: 'Baby Blue', hex: '#89CFF0', category: 'Blue', type: 'cool' },
+  { id: 'b4', name: 'Sky Blue', hex: '#87CEEB', category: 'Blue', type: 'cool' },
+  { id: 'b5', name: 'Denim Blue', hex: '#1560BD', category: 'Blue', type: 'cool' },
+  { id: 'b6', name: 'Teal', hex: '#008080', category: 'Blue', type: 'cool' },
+  { id: 'p1', name: 'Lavender', hex: '#E6E6FA', category: 'Purple', type: 'cool' },
+  { id: 'p2', name: 'Lilac', hex: '#C8A2C8', category: 'Purple', type: 'cool' },
+  { id: 'p3', name: 'Mauve', hex: '#E0B0FF', category: 'Purple', type: 'cool' },
+  { id: 'p4', name: 'Plum', hex: '#8E4585', category: 'Purple', type: 'warm' },
+  { id: 'p5', name: 'Violet', hex: '#7F00FF', category: 'Purple', type: 'cool' },
+  { id: 'pi1', name: 'Dusty Pink', hex: '#DCAE96', category: 'Pink', type: 'warm' },
+  { id: 'pi2', name: 'Blush Pink', hex: '#FEC5E5', category: 'Pink', type: 'cool' },
+  { id: 'pi3', name: 'Rose Pink', hex: '#FF66CC', category: 'Pink', type: 'cool' },
+  { id: 'pi4', name: 'Fuchsia', hex: '#FF00FF', category: 'Pink', type: 'cool' },
+  { id: 'pi5', name: 'Salmon Pink', hex: '#FF91A4', category: 'Pink', type: 'warm' },
+  { id: 'br1', name: 'Chocolate', hex: '#7B3F00', category: 'Brown', type: 'warm' },
+  { id: 'br2', name: 'Mocha', hex: '#967969', category: 'Brown', type: 'warm' },
+  { id: 'br3', name: 'Caramel', hex: '#C68E17', category: 'Brown', type: 'warm' },
+  { id: 'br4', name: 'Camel', hex: '#C19A6B', category: 'Brown', type: 'warm' },
+  { id: 'br5', name: 'Taupe', hex: '#483C32', category: 'Brown', type: 'neutral' },
+  { id: 'n1', name: 'Ivory', hex: '#FFFFF0', category: 'Neutral', type: 'neutral' },
+  { id: 'n2', name: 'Cream', hex: '#FFFDD0', category: 'Neutral', type: 'warm' },
+  { id: 'n3', name: 'Beige', hex: '#F5F5DC', category: 'Neutral', type: 'warm' },
+  { id: 'n4', name: 'Charcoal', hex: '#36454F', category: 'Neutral', type: 'cool' },
+  { id: 'n5', name: 'Ash Grey', hex: '#B2BEB5', category: 'Neutral', type: 'cool' },
+  { id: 'n6', name: 'White', hex: '#FFFFFF', category: 'Neutral', type: 'neutral' },
+  { id: 'n7', name: 'Black', hex: '#1E293B', category: 'Neutral', type: 'neutral' },
+];
+
+const NEUTRALS = COLOR_DATABASE.filter(c => c.category === 'Neutral');
+const getRandomNeutral = () => NEUTRALS[Math.floor(Math.random() * NEUTRALS.length)];
+
+// --- AVATAR ---
+const StylizedAvatar = ({
+  profile,
+  topColor = '#A855F7',
+  bottomColor = '#F5F5DC',
+  hijabColor = '#E6E6FA',
+  hideSwatches = false,
+  scale = 1,
+}) => {
+  const skinObj = SKIN_TONES.find(s => s.id === (profile.skinTone || 'Medium')) || SKIN_TONES[2];
+  const skinHex = skinObj.hex;
+  const isMale = profile.gender === 'male';
+  const hasHijab = !isMale && Boolean(profile.hasHijab);
+
+  return (
+    <div className={`relative w-full h-full flex flex-col items-center justify-center overflow-hidden ${hideSwatches ? 'p-0' : 'pt-2 pb-16'}`}>
+      <style>{`
+        @keyframes avatarFloat { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        .animate-avatar-float { animation: avatarFloat 3.2s ease-in-out infinite; }
+      `}</style>
+
+      <div className="transition-transform duration-300 ease-in-out h-full w-full flex items-center justify-center"
+        style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
+        <svg viewBox="0 0 240 360" className="w-full h-full max-h-[340px] object-contain drop-shadow-md animate-avatar-float" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="120" cy="342" rx="46" ry="7" fill="#0f172a" opacity="0.12" />
+
+          {!isMale && !hasHijab && (
+            <path d="M72 82 C60 138, 56 205, 70 245 L170 245 C184 205, 180 138, 168 82 C168 35, 72 35, 72 82 Z" fill="#3B2820" />
+          )}
+
+          {hasHijab && (
+            <path d="M70 84 C68 36, 172 36, 170 84 L184 195 C184 214, 56 214, 56 195 Z" fill={hijabColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+          )}
+
+          <rect x={isMale ? '109' : '111'} y="130" width={isMale ? '22' : '18'} height="26" rx="6" fill={skinHex} />
+          <path d={isMale ? 'M109 134 Q120 143 131 134 L131 142 Q120 149 109 142 Z' : 'M111 134 Q120 142 129 134 L129 141 Q120 147 111 141 Z'} fill="#000000" opacity="0.1" />
+
+          {hasHijab ? (
+            <g>
+              <path d="M84 212 L156 212 L172 316 L68 316 Z" fill={bottomColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <line x1="104" y1="214" x2="98" y2="315" stroke="#000000" strokeOpacity="0.08" strokeWidth="1.5" />
+              <line x1="120" y1="214" x2="120" y2="315" stroke="#000000" strokeOpacity="0.08" strokeWidth="1.5" />
+              <line x1="136" y1="214" x2="142" y2="315" stroke="#000000" strokeOpacity="0.08" strokeWidth="1.5" />
+            </g>
+          ) : isMale ? (
+            <g>
+              <path d="M84 214 L156 214 L154 316 L126 316 L120 246 L114 316 L86 316 Z" fill={bottomColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <rect x="86" y="309" width="28" height="7" rx="2" fill="#000000" opacity="0.12" />
+              <rect x="126" y="309" width="28" height="7" rx="2" fill="#000000" opacity="0.12" />
+            </g>
+          ) : (
+            <g>
+              <path d="M86 212 L154 212 L162 316 L125 316 L120 245 L115 316 L78 316 Z" fill={bottomColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+            </g>
+          )}
+
+          <g>
+            <path d="M82 316 L114 316 L116 333 C116 337, 80 337, 80 333 Z" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1.5" />
+            <path d="M80 330 L116 330 L116 335 L80 335 Z" fill="#E2E8F0" />
+            <path d="M126 316 L158 316 L160 333 C160 337, 124 337, 124 333 Z" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1.5" />
+            <path d="M124 330 L160 330 L160 335 L124 335 Z" fill="#E2E8F0" />
+          </g>
+
+          <circle cx={isMale ? '54' : '58'} cy="226" r={isMale ? '8.5' : '7.5'} fill={skinHex} stroke="rgba(15,23,42,0.08)" strokeWidth="1" />
+          <circle cx={isMale ? '186' : '182'} cy="226" r={isMale ? '8.5' : '7.5'} fill={skinHex} stroke="rgba(15,23,42,0.08)" strokeWidth="1" />
+
+          {isMale ? (
+            <g>
+              <path d="M76 152 L48 218 L66 223 L84 176 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <path d="M164 152 L192 218 L174 223 L156 176 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <path d="M76 152 C92 148, 148 148, 164 152 L160 216 L80 216 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <path d="M105 150 Q120 163 135 150" fill="none" stroke="rgba(15,23,42,0.2)" strokeWidth="2" />
+              <line x1="120" y1="158" x2="120" y2="215" stroke="#000000" strokeOpacity="0.1" strokeWidth="1.5" />
+            </g>
+          ) : (
+            <g>
+              <path d="M82 154 L52 218 L68 222 L88 175 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <path d="M158 154 L188 218 L172 222 L152 175 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <path d="M82 154 C96 150, 144 150, 158 154 L156 214 L84 214 Z" fill={topColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.5" />
+              <rect x="84" y="207" width="72" height="6" fill="#000000" opacity="0.1" />
+            </g>
+          )}
+
+          <g>
+            {!hasHijab && (
+              <>
+                <ellipse cx="85" cy="98" rx="5.5" ry="8.5" fill={skinHex} />
+                <ellipse cx="155" cy="98" rx="5.5" ry="8.5" fill={skinHex} />
+              </>
+            )}
+            <path d="M87 82 C87 52, 153 52, 153 82 C153 118, 138 136, 120 136 C102 136, 87 118, 87 82 Z" fill={skinHex} />
+
+            {isMale ? (
+              <>
+                <path d="M96 84 L111 86" stroke="#1E293B" strokeWidth="2.8" strokeLinecap="round" />
+                <path d="M144 84 L129 86" stroke="#1E293B" strokeWidth="2.8" strokeLinecap="round" />
+              </>
+            ) : (
+              <>
+                <path d="M96 84 Q103 81 110 84" stroke="#3B2820" strokeWidth="2" fill="none" strokeLinecap="round" />
+                <path d="M130 84 Q137 81 144 84" stroke="#3B2820" strokeWidth="2" fill="none" strokeLinecap="round" />
+              </>
+            )}
+
+            <g>
+              <ellipse cx="103" cy="96" rx={isMale ? '4.8' : '5.5'} ry={isMale ? '6' : '7'} fill="#1E293B" />
+              <circle cx="101" cy="93.5" r="2.1" fill="#FFFFFF" />
+              <circle cx="104.5" cy="98" r="1" fill="#FFFFFF" opacity="0.8" />
+              {!isMale && <path d="M96 92 Q103 88 109 93" stroke="#1E293B" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+              <ellipse cx="137" cy="96" rx={isMale ? '4.8' : '5.5'} ry={isMale ? '6' : '7'} fill="#1E293B" />
+              <circle cx="135" cy="93.5" r="2.1" fill="#FFFFFF" />
+              <circle cx="138.5" cy="98" r="1" fill="#FFFFFF" opacity="0.8" />
+              {!isMale && <path d="M131 93 Q137 88 144 92" stroke="#1E293B" strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+            </g>
+
+            <path d="M119 104 L118 108 L121 108" stroke="#000000" strokeOpacity="0.22" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <ellipse cx="96" cy="108" rx="6.5" ry="3.2" fill="#FB7185" opacity={isMale ? '0.28' : '0.55'} />
+            <ellipse cx="144" cy="108" rx="6.5" ry="3.2" fill="#FB7185" opacity={isMale ? '0.28' : '0.55'} />
+            <path d="M113 116 Q120 123 127 116" stroke={isMale ? '#9A3412' : '#E11D48'} strokeWidth="2.3" fill="none" strokeLinecap="round" />
+          </g>
+
+          {isMale && (
+            <path d="M81 86 C78 44, 162 44, 159 86 C152 67, 138 74, 128 62 C121 75, 111 66, 102 74 C93 66, 86 73, 81 86 Z" fill="#1E293B" />
+          )}
+
+          {!isMale && !hasHijab && (
+            <g>
+              <path d="M82 88 C84 48, 156 48, 158 88 C144 66, 126 76, 120 62 C112 76, 94 66, 82 88 Z" fill="#3B2820" />
+              <path d="M84 82 C80 115, 82 150, 88 175 C90 148, 90 115, 88 85 Z" fill="#3B2820" />
+              <path d="M156 82 C160 115, 158 150, 152 175 C150 148, 150 115, 152 85 Z" fill="#3B2820" />
+            </g>
+          )}
+
+          {hasHijab && (
+            <g>
+              <path d="M87 80 C95 60, 145 60, 153 80 C142 69, 98 69, 87 80 Z" fill="#334155" />
+              <path d="M84 80 C81 128, 98 150, 120 158 C142 150, 159 128, 156 80 C166 105, 166 164, 120 186 C74 164, 74 105, 84 80 Z" fill={hijabColor} stroke="rgba(15,23,42,0.14)" strokeWidth="1.5" />
+              <path d="M90 135 Q120 156 150 135" fill="none" stroke="#000000" strokeOpacity="0.1" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M96 152 Q120 170 144 152" fill="none" stroke="#000000" strokeOpacity="0.08" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M132 154 L148 154 L144 198 C140 202, 132 200, 130 194 Z" fill={hijabColor} stroke="rgba(15,23,42,0.12)" strokeWidth="1.2" />
+            </g>
+          )}
+        </svg>
+      </div>
+
+      {!hideSwatches && (
+        <div className="absolute bottom-3 flex gap-3 bg-white/95 backdrop-blur-md px-5 py-3 rounded-2xl shadow-xl border border-slate-200/80 transition-all">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="w-8 h-8 rounded-full shadow-inner border-2 border-white ring-1 ring-black/10" style={{ backgroundColor: topColor }}></div>
+            <span className="text-[9px] font-extrabold text-slate-600 uppercase tracking-tight">Atasan</span>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="w-8 h-8 rounded-full shadow-inner border-2 border-white ring-1 ring-black/10" style={{ backgroundColor: bottomColor }}></div>
+            <span className="text-[9px] font-extrabold text-slate-600 uppercase tracking-tight">Bawahan</span>
+          </div>
+          {hasHijab && (
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="w-8 h-8 rounded-full shadow-inner border-2 border-white ring-1 ring-black/10" style={{ backgroundColor: hijabColor || '#cbd5e1' }}></div>
+              <span className="text-[9px] font-extrabold text-slate-600 uppercase tracking-tight">Hijab</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- MAIN APP ---
+function DailyMatchApp() {
+  const [currentView, setCurrentView] = useState('onboarding');
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('dailyMatchProfile');
+      if (saved) {
+        setProfile(JSON.parse(saved));
+        setCurrentView('home');
+      }
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const saveProfile = (p) => {
+    setProfile(p);
+    try { localStorage.setItem('dailyMatchProfile', JSON.stringify(p)); } catch (e) {}
+    setCurrentView('home');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-200 flex justify-center font-sans text-slate-900 selection:bg-orange-200">
+      <div className="app-shell w-full max-w-md bg-slate-50 relative flex flex-col overflow-hidden shadow-2xl">
+        {currentView === 'onboarding' && <OnboardingView onComplete={saveProfile} />}
+
+        {currentView !== 'onboarding' && profile && (
+          <>
+            <header className="sticky top-0 z-30 bg-gradient-to-r from-orange-500 to-rose-500 text-white px-4 pt-4 pb-3 shadow-md">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setCurrentView('home')}>
+                  <div className="w-9 h-9 bg-white text-orange-500 rounded-xl flex items-center justify-center font-black text-sm shadow">DM</div>
+                  <div>
+                    <p className="text-[11px] text-orange-100 font-medium leading-none mb-1">Halo, {profile.name}!</p>
+                    <h1 className="text-sm font-extrabold tracking-tight leading-tight">DAILY MATCH</h1>
+                  </div>
+                </div>
+                <button onClick={() => setCurrentView('profile')} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition">
+                  <UserCog size={18} />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  onFocus={() => setCurrentView('library')}
+                  placeholder="Cari warna (Sage, Burgundy)..."
+                  className="w-full pl-8 pr-3 py-2 bg-white text-slate-800 placeholder-slate-400 rounded-xl text-xs font-medium focus:outline-none shadow-inner"
+                  style={{ fontSize: 16 }}
+                />
+              </div>
+            </header>
+
+            <main className="flex-1 overflow-y-auto pb-24 no-scrollbar relative">
+              {currentView === 'home' && <HomeView profile={profile} onNavigate={setCurrentView} />}
+              {currentView === 'studio' && <ColorStudioView profile={profile} />}
+              {currentView === 'library' && <ColorLibraryView />}
+              {currentView === 'profile' && <ProfileView profile={profile} onSave={saveProfile} />}
+            </main>
+
+            <nav className="absolute bottom-0 w-full bg-white border-t border-slate-200 flex justify-around p-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+              <NavButton icon={<Sparkles size={20} />} label="Home" active={currentView === 'home'} onClick={() => setCurrentView('home')} />
+              <NavButton icon={<Palette size={20} />} label="Studio" active={currentView === 'studio'} onClick={() => setCurrentView('studio')} />
+              <NavButton icon={<Search size={20} />} label="Library" active={currentView === 'library'} onClick={() => setCurrentView('library')} />
+            </nav>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NavButton({ icon, label, active, onClick }) {
+  return (
+    <button onClick={onClick}
+      className={`flex flex-col items-center p-2 rounded-xl w-16 transition-all ${active ? 'text-orange-500 font-bold -translate-y-1' : 'text-slate-400 font-medium hover:bg-slate-50'}`}>
+      {icon}
+      <span className="text-[10px] mt-1">{label}</span>
+    </button>
+  );
+}
+
+function OnboardingView({ onComplete }) {
+  const [step, setStep] = useState(1);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [profile, setProfile] = useState({
+    name: '', gender: 'female', hasHijab: true, height: 160, weight: 50,
+    skinTone: 'Medium', undertone: 'Neutral', style: 'Casual',
+  });
+
+  if (step === 1) {
+    return (
+      <div className="flex-1 bg-gradient-to-br from-orange-500 via-orange-500 to-rose-600 text-white flex flex-col items-center justify-between p-8 text-center h-full relative z-50">
+        <div className="pt-16"></div>
+        <div className="space-y-4">
+          <div className="w-24 h-24 bg-white text-orange-500 rounded-3xl mx-auto flex items-center justify-center text-4xl font-black shadow-2xl mb-4">DM</div>
+          <h1 className="text-4xl font-black tracking-tight mb-2">DAILY MATCH</h1>
+          <p className="text-sm text-orange-100 font-medium">"Find Your Color, Discover Your Style."</p>
+        </div>
+        <div className="w-full space-y-3 pb-8">
+          <button onClick={() => setStep(2)}
+            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl text-sm shadow-xl transition active:scale-95 flex items-center justify-center gap-2">
+            Mulai Sekarang <ChevronRight size={18} />
+          </button>
+          <p className="text-[11px] text-orange-100/80">Smart Fashion Stylist & 2D Virtual Try-On</p>
+        </div>
+      </div>
+    );
+  }
+
+  const charCard = (key, gender, hasHijab, active, activeCls, hoverCls, titleActive, bg, tc, bc, hc, title, sub, checkCls) => (
+    <button type="button" onClick={() => setProfile({ ...profile, gender, hasHijab })}
+      className={`relative p-2.5 rounded-2xl border-2 flex items-center gap-3.5 transition overflow-hidden ${active ? activeCls + ' shadow-md' : 'border-slate-200 bg-white ' + hoverCls}`}>
+      <div className={`w-16 h-20 ${bg} rounded-xl overflow-hidden flex-shrink-0`}>
+        <StylizedAvatar profile={{ ...profile, gender, hasHijab }} topColor={tc} bottomColor={bc} hijabColor={hc} hideSwatches scale={1.05} />
+      </div>
+      <div className="text-left flex-1">
+        <h4 className={`text-sm font-bold ${active ? titleActive : 'text-slate-800'}`}>{title}</h4>
+        <p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>
+      </div>
+      {active && <div className={`absolute top-3 right-3 ${checkCls}`}><Check size={18} /></div>}
+    </button>
+  );
+
+  return (
+    <div className="flex-1 bg-white flex flex-col p-6 h-full overflow-y-auto z-50 relative">
+      <div className="space-y-4 pt-2 pb-6">
+        <div>
+          <span className="text-[11px] font-bold text-orange-500 uppercase tracking-widest">Langkah Terakhir</span>
+          <h2 className="text-2xl font-extrabold text-slate-900 mt-1">Atur Profil Styling Kamu</h2>
+          <p className="text-xs text-slate-500 mt-1">Sesuaikan karakter, warna kulit, dan preferensimu!</p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold text-slate-700 mb-1.5 block">Nama Panggilan *</label>
+            <input type="text" value={profile.name}
+              onChange={e => { setErrorMsg(''); setProfile({ ...profile, name: e.target.value }); }}
+              placeholder="Contoh: Aisyah / Reza"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500"
+              style={{ fontSize: 16 }} />
+            {errorMsg && <p className="text-[11px] text-rose-600 font-semibold mt-1">{errorMsg}</p>}
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 mb-2 block">Pilih Karakter Kamu *</label>
+            <div className="flex flex-col gap-2.5">
+              {charCard('f1', 'female', true, profile.gender === 'female' && profile.hasHijab,
+                'border-orange-500 bg-orange-50', 'hover:border-orange-200', 'text-orange-600', 'bg-purple-50',
+                '#A855F7', '#F5F5DC', '#E6E6FA', 'Cewek Berhijab', 'Tampilan anggun & modest.', 'text-orange-500')}
+              {charCard('f2', 'female', false, profile.gender === 'female' && !profile.hasHijab,
+                'border-pink-500 bg-pink-50', 'hover:border-pink-200', 'text-pink-600', 'bg-pink-50',
+                '#EC4899', '#64748B', '#E6E6FA', 'Cewek (Non-Hijab)', 'Tampilan manis rambut panjang.', 'text-pink-500')}
+              {charCard('m1', 'male', false, profile.gender === 'male',
+                'border-blue-500 bg-blue-50', 'hover:border-blue-200', 'text-blue-600', 'bg-blue-50',
+                '#475569', '#1E293B', '#E6E6FA', 'Laki-laki (Cowok)', 'Tampilan casual & sporty.', 'text-blue-500')}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 mb-2 block">Tone Warna Kulit *</label>
+            <div className="grid grid-cols-5 gap-2">
+              {SKIN_TONES.map(tone => {
+                const isSelected = profile.skinTone === tone.id;
+                return (
+                  <button key={tone.id} type="button" onClick={() => setProfile({ ...profile, skinTone: tone.id })}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition ${isSelected ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                    <div className="w-8 h-8 rounded-full shadow-inner border border-black/10" style={{ backgroundColor: tone.hex }} />
+                    <span className={`text-[10px] font-bold ${isSelected ? 'text-orange-600' : 'text-slate-600'}`}>{tone.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 mb-1.5 block">Undertone Kulit</label>
+            <div className="grid grid-cols-3 gap-2">
+              {['Warm', 'Cool', 'Neutral'].map(u => {
+                const isSelected = profile.undertone === u;
+                return (
+                  <button key={u} type="button" onClick={() => setProfile({ ...profile, undertone: u })}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition ${isSelected ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                    {u}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block">Tinggi (cm)</label>
+              <input type="number" value={profile.height} onChange={e => setProfile({ ...profile, height: Number(e.target.value) })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500" style={{ fontSize: 16 }} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block">Berat (kg)</label>
+              <input type="number" value={profile.weight} onChange={e => setProfile({ ...profile, weight: Number(e.target.value) })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500" style={{ fontSize: 16 }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-auto pt-3 flex gap-2">
+        <button type="button" onClick={() => setStep(1)} className="px-5 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl text-xs">Kembali</button>
+        <button type="button"
+          onClick={() => {
+            if (profile.name.trim()) onComplete({ ...profile, name: profile.name.trim() });
+            else setErrorMsg('Mohon isi nama panggilan kamu terlebih dahulu.');
+          }}
+          className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-2xl text-sm shadow-lg active:scale-95 transition flex justify-center items-center gap-2">
+          Masuk ke Home <Check size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function HomeView({ profile, onNavigate }) {
+  const skinObj = SKIN_TONES.find(s => s.id === profile.skinTone) || SKIN_TONES[2];
+  const features = [
+    { icon: <Palette size={20} />, bg: 'bg-orange-100 text-orange-600', hover: 'hover:border-orange-500', title: 'Color Matching Studio', sub: 'Paduan 50+ warna Atasan & Bawahan' },
+    { icon: <UserCog size={20} />, bg: 'bg-indigo-100 text-indigo-600', hover: 'hover:border-indigo-500', title: 'Virtual Try-On', sub: 'Preview langsung di karakter animemu' },
+    { icon: <Sparkles size={20} />, bg: 'bg-amber-100 text-amber-600', hover: 'hover:border-amber-500', title: 'Auto Outfit Generator', sub: 'Generate setelan lengkap' },
+    { icon: <CalendarDays size={20} />, bg: 'bg-rose-100 text-rose-600', hover: 'hover:border-rose-500', title: 'Outfit for Occasion', sub: 'Rekomendasi Kuliah, Kerja, dll.' },
+  ];
+
+  return (
+    <div className="p-4 space-y-5">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden">
+        <div className="relative z-10 space-y-2 max-w-[80%]">
+          <span className="inline-block px-2 py-0.5 bg-orange-500 text-[10px] font-extrabold rounded-md uppercase tracking-wider">Personal Color AI</span>
+          <h2 className="text-base font-extrabold leading-snug">Temukan Paduan Warna Paling Pas Untukmu</h2>
+          <p className="text-[11px] text-slate-300">Eksplorasi 50+ warna & coba langsung di karakter animemu.</p>
+          <button onClick={() => onNavigate('studio')}
+            className="mt-2 px-4 py-2 bg-white text-slate-900 font-extrabold rounded-xl text-xs shadow hover:bg-orange-50 transition flex items-center gap-1">
+            Buka Color Studio <ChevronRight size={14} className="text-orange-500" />
+          </button>
+        </div>
+        <Palette size={96} className="text-white/10 absolute -right-4 -bottom-4 rotate-12" />
+      </div>
+
+      <div onClick={() => onNavigate('profile')}
+        className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between cursor-pointer hover:border-orange-400 transition">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-12 rounded-xl bg-orange-50 overflow-hidden flex-shrink-0 border border-orange-100">
+            <StylizedAvatar profile={profile} topColor="#F97316" bottomColor="#334155" hijabColor="#FFFDD0" hideSwatches scale={1.1} />
+          </div>
+          <div>
+            <p className="text-xs font-extrabold text-slate-800">
+              {profile.gender === 'male' ? 'Laki-laki' : profile.hasHijab ? 'Perempuan Berhijab' : 'Perempuan Non-Hijab'}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-3 h-3 rounded-full border border-black/15 inline-block" style={{ backgroundColor: skinObj.hex }}></span>
+              <span className="text-[10px] font-semibold text-slate-500">Tone {profile.skinTone} • {profile.undertone} Undertone</span>
+            </div>
+          </div>
+        </div>
+        <ChevronRight size={16} className="text-slate-400" />
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-xs font-extrabold text-slate-800 px-1">Fitur Utama Daily Match</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {features.map(f => (
+            <div key={f.title} onClick={() => onNavigate('studio')}
+              className={`bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm ${f.hover} cursor-pointer transition flex flex-col gap-2`}>
+              <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center`}>{f.icon}</div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-800 leading-tight">{f.title}</h4>
+                <p className="text-[10px] text-slate-500 mt-1 leading-tight">{f.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 pt-2">
+        <button onClick={() => onNavigate('library')}
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 text-left hover:border-orange-500 transition shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm"><DoorClosed size={18} /></div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">My Wardrobe</p>
+            <p className="text-[10px] text-slate-500">Katalog warna</p>
+          </div>
+        </button>
+        <button onClick={() => onNavigate('profile')}
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 text-left hover:border-orange-500 transition shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center text-sm"><Filter size={18} /></div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">Profil Tubuh</p>
+            <p className="text-[10px] text-slate-500">Skin tone & fisik</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ColorStudioView({ profile }) {
+  const [selectedColor, setSelectedColor] = useState(COLOR_DATABASE[0]);
+  const [focus, setFocus] = useState('bottom');
+  const [matches, setMatches] = useState([]);
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const hijabMode = profile.hasHijab && profile.gender === 'female';
+
+  useEffect(() => {
+    const generated = [];
+    const monoBase = COLOR_DATABASE.filter(c => c.category === selectedColor.category && c.id !== selectedColor.id)[0] || getRandomNeutral();
+    const compBase = COLOR_DATABASE.filter(c => c.type !== selectedColor.type && c.type !== 'neutral')[0] || getRandomNeutral();
+
+    for (let i = 1; i <= 15; i++) {
+      let top = getRandomNeutral();
+      let bottom = getRandomNeutral();
+      let hijab = hijabMode ? getRandomNeutral() : undefined;
+
+      if (focus === 'bottom') {
+        bottom = selectedColor;
+        top = i % 3 === 0 ? monoBase : i % 2 === 0 ? compBase : getRandomNeutral();
+        if (hijab) hijab = i % 4 === 0 ? top : getRandomNeutral();
+      } else if (focus === 'top') {
+        top = selectedColor;
+        bottom = i % 3 === 0 ? monoBase : i % 2 === 0 ? compBase : getRandomNeutral();
+        if (hijab) hijab = i % 4 === 0 ? bottom : getRandomNeutral();
+      } else if (focus === 'hijab' && hijabMode) {
+        hijab = selectedColor;
+        top = i % 2 === 0 ? monoBase : getRandomNeutral();
+        bottom = i % 3 === 0 ? top : getRandomNeutral();
+      }
+
+      generated.push({
+        id: `match-${i}`,
+        rule: i === 1 ? 'Monochromatic Elegance' : i === 2 ? 'Complementary Bold' : 'Harmonious Casual',
+        top, bottom, hijab,
+        description: `Paduan warna ${top.name} dan ${bottom.name} memberikan kesan gaya dan seimbang.`,
+      });
+    }
+    setMatches(generated);
+    setActiveMatchIndex(0);
+  }, [selectedColor, focus, profile.hasHijab, profile.gender]);
+
+  const activeMatch = matches[activeMatchIndex];
+  const focusBtn = (key, label) => (
+    <button onClick={() => setFocus(key)}
+      className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${focus === key ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-slate-200 bg-white text-slate-600'}`}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col h-full bg-slate-50 relative">
+      <div className="h-[48%] bg-gradient-to-br from-slate-200 to-slate-300 relative border-b border-slate-300/50 overflow-hidden">
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 bg-white/80 backdrop-blur-sm p-1.5 rounded-xl shadow-sm border border-white">
+          <button onClick={() => setZoom(z => Math.min(Number((z + 0.2).toFixed(1)), 2))}
+            className="w-7 h-7 flex items-center justify-center bg-white rounded-lg text-slate-700 hover:bg-orange-50 hover:text-orange-500 shadow-sm transition font-bold text-lg leading-none">+</button>
+          <button onClick={() => setZoom(z => Math.max(Number((z - 0.2).toFixed(1)), 0.8))}
+            className="w-7 h-7 flex items-center justify-center bg-white rounded-lg text-slate-700 hover:bg-orange-50 hover:text-orange-500 shadow-sm transition font-bold text-lg leading-none">-</button>
+        </div>
+        <StylizedAvatar profile={profile}
+          topColor={activeMatch?.top.hex || '#FFFFFF'}
+          bottomColor={activeMatch?.bottom.hex || '#1E293B'}
+          hijabColor={activeMatch?.hijab?.hex || '#E6E6FA'}
+          scale={zoom} />
+      </div>
+
+      <div className="flex-1 bg-white p-5 rounded-t-3xl -mt-5 z-10 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="font-black text-lg text-slate-800">Match Generator</h3>
+            {activeMatch && <p className="text-[11px] text-slate-500">{activeMatch.rule}</p>}
+          </div>
+          <span className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold shadow-inner">
+            {activeMatchIndex + 1} / {matches.length}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <button onClick={() => setActiveMatchIndex(prev => (prev > 0 ? prev - 1 : matches.length - 1))}
+            className="py-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-700 active:scale-95 transition">Prev Match</button>
+          <button onClick={() => setActiveMatchIndex(prev => (prev < matches.length - 1 ? prev + 1 : 0))}
+            className="py-3 bg-orange-500 rounded-xl font-bold text-sm text-white shadow-lg active:scale-95 transition">Next Match</button>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Warna Utama</h4>
+            <span className="text-[11px] font-bold text-orange-600">{selectedColor.name}</span>
+          </div>
+          <div className="flex gap-2 mb-4">
+            {focusBtn('top', 'Atasan')}
+            {focusBtn('bottom', 'Bawahan')}
+            {hijabMode && focusBtn('hijab', 'Hijab')}
+          </div>
+          <div className="flex overflow-x-auto gap-2.5 pb-2 no-scrollbar">
+            {COLOR_DATABASE.map(c => (
+              <button key={c.id} onClick={() => setSelectedColor(c)}
+                className={`flex-shrink-0 w-11 h-11 rounded-full border-2 transition ${selectedColor.id === c.id ? 'border-orange-500 scale-110 shadow-md' : 'border-white shadow-sm'}`}
+                style={{ backgroundColor: c.hex }} title={c.name} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColorLibraryView() {
+  const [search, setSearch] = useState('');
+  const q = search.toLowerCase();
+  const filtered = COLOR_DATABASE.filter(c =>
+    c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q) || c.hex.toLowerCase().includes(q));
+
+  return (
+    <div className="p-4 flex flex-col h-full bg-slate-50">
+      <div className="relative mb-5 mt-2">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Cari warna (ex: Sage, Red, #800020)..."
+          className="w-full bg-white border border-slate-200 py-3.5 pl-11 pr-4 rounded-2xl text-sm font-medium shadow-sm focus:outline-none focus:border-orange-500"
+          style={{ fontSize: 16 }} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-10">
+        {filtered.map(c => (
+          <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center gap-3">
+            <div className="w-16 h-16 rounded-full shadow-inner border-2 border-slate-100" style={{ backgroundColor: c.hex }}></div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">{c.name}</p>
+              <p className="text-[10px] text-slate-500 uppercase font-mono mt-1">{c.hex}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileView({ profile, onSave }) {
+  const [editProfile, setEditProfile] = useState({
+    ...profile,
+    skinTone: profile.skinTone || 'Medium',
+    undertone: profile.undertone || 'Neutral',
+  });
+
+  const charBtn = (label, gender, hasHijab, active, cls) => (
+    <button type="button" onClick={() => setEditProfile({ ...editProfile, gender, hasHijab })}
+      className={`py-2.5 px-2 rounded-xl border text-[11px] font-bold transition ${active ? cls : 'border-slate-200 bg-white text-slate-600'}`}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="p-5 space-y-5 bg-slate-50 min-h-full">
+      <div>
+        <h2 className="text-xl font-black text-slate-800">Profil & Fisik</h2>
+        <p className="text-xs text-slate-500">Sesuaikan karakter, tone kulit, dan profil untuk rekomendasi akurat</p>
+      </div>
+
+      <div className="bg-gradient-to-br from-orange-50 to-rose-50 rounded-2xl border border-orange-200/70 h-56 overflow-hidden shadow-sm">
+        <StylizedAvatar profile={editProfile} topColor="#F97316" bottomColor="#334155" hijabColor="#FFFDD0" hideSwatches scale={0.95} />
+      </div>
+
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+        <div>
+          <label className="text-xs font-bold text-slate-700 block mb-1.5">Nama Panggilan</label>
+          <input type="text" value={editProfile.name} onChange={e => setEditProfile({ ...editProfile, name: e.target.value })}
+            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500" style={{ fontSize: 16 }} />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 block mb-1.5">Karakter & Hijab</label>
+          <div className="grid grid-cols-3 gap-2">
+            {charBtn('Cewek Hijab', 'female', true, editProfile.gender === 'female' && editProfile.hasHijab, 'border-orange-500 bg-orange-50 text-orange-600')}
+            {charBtn('Cewek Non-Hijab', 'female', false, editProfile.gender === 'female' && !editProfile.hasHijab, 'border-pink-500 bg-pink-50 text-pink-600')}
+            {charBtn('Laki-laki', 'male', false, editProfile.gender === 'male', 'border-blue-500 bg-blue-50 text-blue-600')}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 block mb-2">Tone Warna Kulit</label>
+          <div className="grid grid-cols-5 gap-2">
+            {SKIN_TONES.map(tone => {
+              const isSelected = editProfile.skinTone === tone.id;
+              return (
+                <button key={tone.id} type="button" onClick={() => setEditProfile({ ...editProfile, skinTone: tone.id })}
+                  className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition ${isSelected ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                  <div className="w-7 h-7 rounded-full shadow-inner border border-black/10" style={{ backgroundColor: tone.hex }} />
+                  <span className={`text-[10px] font-bold ${isSelected ? 'text-orange-600' : 'text-slate-600'}`}>{tone.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-700 block mb-1.5">Undertone Kulit</label>
+          <div className="grid grid-cols-3 gap-2">
+            {['Warm', 'Cool', 'Neutral'].map(u => {
+              const isSelected = editProfile.undertone === u;
+              return (
+                <button key={u} type="button" onClick={() => setEditProfile({ ...editProfile, undertone: u })}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition ${isSelected ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                  {u}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">Tinggi (cm)</label>
+            <input type="number" value={editProfile.height} onChange={e => setEditProfile({ ...editProfile, height: Number(e.target.value) })}
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500" style={{ fontSize: 16 }} />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">Berat (kg)</label>
+            <input type="number" value={editProfile.weight} onChange={e => setEditProfile({ ...editProfile, weight: Number(e.target.value) })}
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500" style={{ fontSize: 16 }} />
+          </div>
+        </div>
+
+        <button onClick={() => onSave(editProfile)}
+          className="w-full py-3 mt-4 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-slate-800 transition flex items-center justify-center gap-2">
+          <Check size={16} /> Simpan Perubahan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<DailyMatchApp />);
+</script>
+</body>
+</html>
